@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Clarity.TypeScript.CodeGenerator.Tests
+namespace Clarity.ServiceStack.CodeGenerator.TypeScript.Tests
 {
-    using ServiceStack;
-
+    using global::ServiceStack;
+    
     [Route("/Test/ReturnVoid")]
     public class VoidReturnRoute : IReturnVoid
     {

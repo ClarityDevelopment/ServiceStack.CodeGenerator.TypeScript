@@ -1,68 +1,3 @@
-Clarity.ServiceStack.CodeGen.TypeScript
-==============================
-
-A TypeScript client code generator for ServiceStack routes.
-
-Simple Example
-==============
-
-```csharp
-[Route("/Test/{ID}/ReturnVoid")]
-public class RouteWithParam : IReturnVoid
-{
-    [ApiMember]
-    public int ID { get; set; }
-    [ApiMember]
-    public bool Flag { get; set; }
-}
-```
-
-```typescript
-///<reference path="dtos.ts"/>
-///<reference path="routes.ts"/>
-
-module cv.cef.api {
-    angular
-        .module('cv.cef.api', [])
-        .service('$cef', ($http : ng.IHttpService) => {
-            return new Client($http);
-        });
-    
-    /**
-    Exposes access to the ServiceStack routes
-    */
-    export class Client {
-        
-        private _$http: ng.IHttpService;
-        get $http():ng.IHttpService {
-                return this._$http;
-            }
-        
-
-        private _rootUrl: string;
-
-        get rootUrl():string {
-                return this._rootUrl;
-            }
-            set rootUrl(value:string) {
-                // Remove trailing slash if it exists
-                this._rootUrl = value.substr(-1) != '/'
-                    ? value
-                    : value.substr(0, value.length - 1);
-            }
-  
-        constructor($http: ng.IHttpService) {
-            this._$http = $http;
-
-            this.test = new routes.Test(this);
-        }
-
-        test: routes.Test
-
-    }
-
-}
-
 ///<reference path="client.ts"/>
 ///<reference path="dtos.ts"/>
 
@@ -133,10 +68,11 @@ module cv.cef.api.routes {
                 url:  [this.rootUrl, "Test", "ReturnVoid"].join('/'),
                 method: 'GET',
             });
-        }        
+        }
+        
     }
+
+
+
 }
 
-
-
-```

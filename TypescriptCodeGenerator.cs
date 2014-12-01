@@ -26,7 +26,7 @@ using System.Threading.Tasks;
  */
 
 
-namespace Clarity.TypeScript.CodeGenerator
+namespace Clarity.ServiceStack.CodeGenerator.TypeScript
 {
     using System.CodeDom.Compiler;
     using System.IO;
@@ -34,7 +34,7 @@ namespace Clarity.TypeScript.CodeGenerator
     using System.Reflection;
     using System.Runtime.InteropServices;
 
-    using ServiceStack;
+    using global::ServiceStack;
 
     public class TypescriptCodeGenerator
     {
@@ -147,6 +147,7 @@ namespace Clarity.TypeScript.CodeGenerator
         public string GenerateRoutes()
         {
             var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
+            writer.WriteLine("///<reference path=\"client.ts\"/>");
             writer.WriteLine("///<reference path=\"dtos.ts\"/>");
 
             writer.WriteLine("\nmodule " + _ModuleNamespace + ".routes {");

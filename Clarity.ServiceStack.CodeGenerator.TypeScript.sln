@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clarity.TypeScript.CodeGenerator", "Clarity.TypeScript.CodeGenerator.csproj", "{F6B88838-9DC6-4D02-96B4-60B9E4B3EC0D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clarity.ServiceStack.CodeGenerator.TypeScript", "Clarity.ServiceStack.CodeGenerator.TypeScript.csproj", "{F6B88838-9DC6-4D02-96B4-60B9E4B3EC0D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{86CA79FF-ACEF-497F-9BD6-84DBDFE357C4}"
 	ProjectSection(SolutionItems) = preProject
