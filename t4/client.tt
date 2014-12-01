@@ -1,0 +1,43 @@
+﻿<#@ template hostspecific="True" language="C#" #>
+<#@include file="Manager.ttinclude"#>
+<#@ assembly name="System.Core" #>
+<#@ assembly name="$(SolutionDir)clarity.ecommerce.service\bin\ServiceStack.Text.dll" #>
+<#@ assembly name="$(SolutionDir)clarity.ecommerce.service\bin\ServiceStack.Interfaces.dll" #>
+<#@ assembly name="$(SolutionDir)clarity.ecommerce.service\bin\Clarity.Ecommerce.Models.dll" #>
+<#@ assembly name="$(SolutionDir)clarity.ecommerce.service\bin\Clarity.Ecommerce.Service.dll" #>
+<#@ assembly name="System.Web.dll" #>
+<#@ assembly name="$(SolutionDir)ServiceStack\Clarity.TypeScript.CodeGenerator\bin\debug\Clarity.TypeScript.CodeGenerator.dll" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Runtime.InteropServices" #>
+<#@ import namespace="ServiceStack" #> 
+<#@ import namespace="System.Reflection" #> 
+<#@ import namespace="System.Collections.Generic" #> 
+<#@ import namespace="Clarity.TypeScript.CodeGenerator" #>
+<#@output extension=".ts"#>
+<# var manager = Manager.Create(Host, GenerationEnvironment); #>
+<#
+    var routeTypes =
+        AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => a.FullName.StartsWith("Clarity.Ecommerce.Service"))
+            .SelectMany(
+                a =>
+                a.GetTypes()
+                    .Where(t => t.CustomAttributes.Any(attr => attr.AttributeType == typeof(RouteAttribute))));
+
+    var cg = new TypescriptCodeGenerator(routeTypes, new string[]{"Clarity.Ecommerce.DataModel"});
+        
+    manager.StartNewFile("dtos.ts");
+    WriteLine(cg.GenerateDtos());
+    manager.EndBlock();
+
+	manager.StartNewFile("routes.ts");
+    WriteLine(cg.GenerateRoutes());
+    manager.EndBlock();
+
+    WriteLine(cg.GenerateClient());    
+
+ #>
+<# manager.Process(true); #>
+<#+   
+    
+#>
