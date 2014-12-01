@@ -1,4 +1,4 @@
-Clarity.ServiceStack.CodeGen.TypeScript
+Clarity.ServiceStack.CodeGenerator.TypeScript
 ==============================
 
 A TypeScript client code generator for ServiceStack routes.
