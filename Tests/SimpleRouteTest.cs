@@ -41,7 +41,7 @@ namespace Clarity.TypeScript.CodeGenerator.Tests
         [Xunit.Fact]
         public void SimpleRoute()
         {
-            var cg = new TypescriptCodeGenerator(typeof(RouteWithParam), new string[]{});
+            var cg = new TypescriptCodeGenerator(typeof(RouteWithParam), "cv.cef.api", new string[]{});
         }
     }
 }

@@ -46,19 +46,32 @@ namespace Clarity.TypeScript.CodeGenerator
 
         private IndentedTextWriter _RoutesWriter;
 
+        private readonly string _ModuleNamespace;
+
         private readonly string[] _ExclusionNamespaces;
+
+        private readonly string _ServiceName;
 
         private const string TAB = "    ";
 
-        public TypescriptCodeGenerator(Type routeType, string[] exclusionNamespaces)
-            : this(new[] { routeType }, exclusionNamespaces)
+        public TypescriptCodeGenerator(Type routeType, string moduleNamespace, string[] exclusionNamespaces)
+            : this(new[] { routeType }, moduleNamespace, exclusionNamespaces)
         {
 
         }
 
-        public TypescriptCodeGenerator(IEnumerable<Type> routeTypes, string[] exclusionNamespaces)
+        public TypescriptCodeGenerator(
+            IEnumerable<Type> routeTypes,
+            string moduleNamespace) : this(routeTypes, moduleNamespace, new string[]{})
         {
+            
+        }
+
+        public TypescriptCodeGenerator(IEnumerable<Type> routeTypes, string moduleNamespace, string[] exclusionNamespaces, string serviceName = "")
+        {
+            _ModuleNamespace = moduleNamespace;
             _ExclusionNamespaces = exclusionNamespaces;
+            _ServiceName = serviceName;
             ProcessTypes(routeTypes);
         }
 
@@ -68,14 +81,14 @@ namespace Clarity.TypeScript.CodeGenerator
             writer.WriteLine("///<reference path=\"dtos.ts\"/>");
             writer.WriteLine("///<reference path=\"routes.ts\"/>");
 
-            writer.WriteLine("\nmodule cv.cef.api {");
+            writer.WriteLine("\nmodule " + _ModuleNamespace + " {");
             writer.Indent++;
 
 
             // Code to expose the service
             writer.WriteLine(@"angular
-        .module('cv.cef.api', [])
-        .service('$cef', ($http : ng.IHttpService) => {
+        .module('" + _ModuleNamespace + @"', [])
+        .service('" + _ServiceName + @"', ($http : ng.IHttpService) => {
             return new Client($http);
         });");
 
@@ -90,7 +103,7 @@ namespace Clarity.TypeScript.CodeGenerator
         public string GenerateDtos()
         {
             var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
-            writer.WriteLine("module cv.cef.api.dtos {");
+            writer.WriteLine("module " + _ModuleNamespace + ".dtos {");
             writer.Indent++;
            
             // Write out the DTOs
@@ -136,7 +149,7 @@ namespace Clarity.TypeScript.CodeGenerator
             var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
             writer.WriteLine("///<reference path=\"dtos.ts\"/>");
 
-            writer.WriteLine("\nmodule cv.cef.api.routes {");
+            writer.WriteLine("\nmodule " + _ModuleNamespace + ".routes {");
             writer.Indent++;
 
 
@@ -168,7 +181,7 @@ namespace Clarity.TypeScript.CodeGenerator
             _ClientWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
             _ClientWriter.WriteLine(@"
     /**
-    Exposes access to the Clarity Ecommerce API
+    Exposes access to the ServiceStack routes
     */
     export class Client {");
             _ClientWriter.Indent++;
