@@ -1,9 +1,15 @@
 Clarity.ServiceStack.CodeGenerator.TypeScript
 ==============================
 
-A TypeScript client code generator for ServiceStack routes.
+A library and Text Transform file that generate a strongly typed TypeScript client from 
+your service's ServiceStack routes.
 
-Simple Example
+The files created by the .tt are:
+* client.ts     
+* routes.ts
+* dtos.ts       
+
+A Simple Example
 ==============
 
 ```csharp
@@ -136,7 +142,4 @@ module cv.cef.api.routes {
         }        
     }
 }
-
-
-
 ```

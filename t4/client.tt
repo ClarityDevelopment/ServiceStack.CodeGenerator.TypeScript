@@ -7,13 +7,13 @@
 //#@ assembly name="$(TargetDir)\Clarity.Ecommerce.Service.dll" #
 
 <#@ assembly name="System.Web.dll" #>
-<#@ assembly name="$(TargetDir)\Clarity.ServiceStack.CodeGenerator.TypeScript.dll" #>
+<#@ assembly name="$(TargetDir)\ServiceStack.CodeGenerator.TypeScript.dll" #>
 <#@ import namespace="System.Linq" #>
 <#@ import namespace="System.Runtime.InteropServices" #>
 <#@ import namespace="ServiceStack" #> 
 <#@ import namespace="System.Reflection" #> 
 <#@ import namespace="System.Collections.Generic" #> 
-<#@ import namespace="Clarity.ServiceStack.CodeGenerator.TypeScript" #>
+<#@ import namespace="ServiceStack.CodeGenerator.TypeScript" #>
 <#@output extension=".ts"#>
 <# var manager = Manager.Create(Host, GenerationEnvironment); #>
 <#

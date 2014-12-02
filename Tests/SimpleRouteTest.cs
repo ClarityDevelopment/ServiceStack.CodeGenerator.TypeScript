@@ -1,13 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Clarity.ServiceStack.CodeGenerator.TypeScript.Tests
+﻿namespace ServiceStack.CodeGenerator.TypeScript.Tests
 {
-    using global::ServiceStack;
-    
     [Route("/Test/ReturnVoid")]
     public class VoidReturnRoute : IReturnVoid
     {

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-/*
+﻿/*
  * Todo:
  *      Instead of scanning for all classes that have the route attribute, look for all ServiceStack.Services and then only grab the routes
  *      that are implemented.
@@ -26,15 +20,14 @@ using System.Threading.Tasks;
  */
 
 
-namespace Clarity.ServiceStack.CodeGenerator.TypeScript
+namespace ServiceStack.CodeGenerator.TypeScript
 {
+    using System;
     using System.CodeDom.Compiler;
+    using System.Collections.Generic;
     using System.IO;
-    using System.Net.Configuration;
+    using System.Linq;
     using System.Reflection;
-    using System.Runtime.InteropServices;
-
-    using global::ServiceStack;
 
     public class TypescriptCodeGenerator
     {
