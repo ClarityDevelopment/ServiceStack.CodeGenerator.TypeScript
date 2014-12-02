@@ -60,6 +60,7 @@
     <Compile Include="Tests\SimpleRouteTest.cs" />
     <Compile Include="TypescriptCodeGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TypeScriptGeneratorService.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
