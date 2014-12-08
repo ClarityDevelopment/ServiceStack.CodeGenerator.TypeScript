@@ -1,21 +1,21 @@
-﻿//#@ assembly name="$(TargetDir)\Clarity.Ecommerce.Models.dll" #
-//#@ assembly name="$(TargetDir)\Clarity.Ecommerce.Service.dll" #
+﻿
+ 
+ 
+ 
+///<reference path="_references.ts"/>
 
- 
- 
- 
 ///<reference path="dtos.ts"/>
 ///<reference path="routes.ts"/>
 
 module cv.cef.api {
     angular
         .module('cv.cef.api', [])
-        .service('$cef', ($http : ng.IHttpService) => {
+        .service('$cef', ['$http', ($http : ng.IHttpService) => {
             return new Client($http);
-        });
+        }]);
     
     /**
-    Exposes access to the ServiceStack routes
+     * Exposes access to the ServiceStack routes
     */
     export class Client {
         

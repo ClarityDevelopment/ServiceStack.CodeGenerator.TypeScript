@@ -19,57 +19,54 @@
  *              /Product/ProductTypes
  */
 
-
-namespace ServiceStack.CodeGenerator.TypeScript
-{
+namespace ServiceStack.CodeGenerator.TypeScript {
     using System;
     using System.CodeDom.Compiler;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Reflection;
+    using System.Runtime.Remoting.Messaging;
 
-    public class TypescriptCodeGenerator
-    {
-        readonly HashSet<Type> _DTOs = new HashSet<Type>();
-
-        private IndentedTextWriter _ClientWriter;
-
-        private IndentedTextWriter _ClientRoutesWriter;
-
-        private IndentedTextWriter _RoutesWriter;
-
-        private readonly string _ModuleNamespace;
-
-        private readonly string[] _ExclusionNamespaces;
-
-        private readonly string _ServiceName;
+    public class TypescriptCodeGenerator {
+        #region Constants
 
         private const string TAB = "    ";
 
-        public TypescriptCodeGenerator(Type routeType, string moduleNamespace, string[] exclusionNamespaces)
-            : this(new[] { routeType }, moduleNamespace, exclusionNamespaces)
-        {
+        #endregion
 
-        }
+        #region Fields
 
-        public TypescriptCodeGenerator(
-            IEnumerable<Type> routeTypes,
-            string moduleNamespace) : this(routeTypes, moduleNamespace, new string[]{})
-        {
-            
-        }
+        private readonly HashSet<Type> _DTOs = new HashSet<Type>();
 
-        public TypescriptCodeGenerator(IEnumerable<Type> routeTypes, string moduleNamespace, string[] exclusionNamespaces, string serviceName = "")
-        {
+        private readonly string[] _ExclusionNamespaces;
+
+        private readonly string _ModuleNamespace;
+
+        private readonly string _ServiceName;
+
+        private IndentedTextWriter _ClientRoutesWriter;
+
+        private IndentedTextWriter _ClientWriter;
+
+        private IndentedTextWriter _RoutesWriter;
+
+        #endregion
+
+        #region Constructors and Destructors
+
+        public TypescriptCodeGenerator(IEnumerable<Type> routeTypes, string moduleNamespace, string[] exclusionNamespaces, string serviceName = "") {
             _ModuleNamespace = moduleNamespace;
             _ExclusionNamespaces = exclusionNamespaces;
             _ServiceName = serviceName;
             ProcessTypes(routeTypes);
         }
 
-        public string GenerateClient()
-        {
+        #endregion
+
+        #region Public Methods and Operators
+
+        public string GenerateClient() {
             var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
             writer.WriteLine("///<reference path=\"dtos.ts\"/>");
             writer.WriteLine("///<reference path=\"routes.ts\"/>");
@@ -77,13 +74,12 @@ namespace ServiceStack.CodeGenerator.TypeScript
             writer.WriteLine("\nmodule " + _ModuleNamespace + " {");
             writer.Indent++;
 
-
             // Code to expose the service
             writer.WriteLine(@"angular
         .module('" + _ModuleNamespace + @"', [])
-        .service('" + _ServiceName + @"', ($http : ng.IHttpService) => {
+        .service('" + _ServiceName + @"', ['$http', ($http : ng.IHttpService) => {
             return new Client($http);
-        });");
+        }]);");
 
             writer.WriteLine(_ClientWriter.InnerWriter);
 
@@ -93,35 +89,29 @@ namespace ServiceStack.CodeGenerator.TypeScript
             return writer.InnerWriter.ToString();
         }
 
-        public string GenerateDtos()
-        {
+        public string GenerateDtos() {
             var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
             writer.WriteLine("module " + _ModuleNamespace + ".dtos {");
             writer.Indent++;
-           
+
             // Write out the DTOs
-            foreach (var dto in _DTOs.OrderBy(t => t.Name))
-            {
+            foreach (Type dto in _DTOs.OrderBy(t => t.Name)) {
+                PropertyInfo[] dtoProperties = dto.GetProperties().Where(prop => prop.CanRead && prop.CanWrite).ToArray();
+
+                GenerateJsDoc(writer, dto, dtoProperties, true);
+
                 writer.WriteLine("export interface " + dto.Name + " {");
                 writer.Indent++;
 
-                foreach (var property in dto.GetProperties().Where(prop => prop.CanRead && prop.CanWrite))
-                {
-                    try
-                    {
-                        var returnType = property.GetMethod.ReturnType;
+                foreach (PropertyInfo property in dtoProperties) {
+                    try {
+                        Type returnType = property.GetMethod.ReturnType;
                         // Optional?
-                        if (returnType.IsNullableType() || returnType.IsClass())
-                        {
-                            writer.WriteLine(property.Name + "?: " + DetermineTsType(returnType) + ";");
-                        }
+                        if (returnType.IsNullableType() || returnType.IsClass()) writer.WriteLine(property.Name + "?: " + DetermineTsType(returnType) + ";");
                         else // Required 
-                        {
                             writer.WriteLine(property.Name + ": " + DetermineTsType(returnType) + ";");
-                        }
                     }
-                    catch (Exception e)
-                    {
+                    catch (Exception e) {
                         writer.WriteLine("// ERROR - Unable to emit property " + property.Name);
                         writer.WriteLine("//     " + e.Message);
                     }
@@ -137,8 +127,7 @@ namespace ServiceStack.CodeGenerator.TypeScript
             return writer.InnerWriter.ToString();
         }
 
-        public string GenerateRoutes()
-        {
+        public string GenerateRoutes() {
             var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
             writer.WriteLine("///<reference path=\"client.ts\"/>");
             writer.WriteLine("///<reference path=\"dtos.ts\"/>");
@@ -146,10 +135,9 @@ namespace ServiceStack.CodeGenerator.TypeScript
             writer.WriteLine("\nmodule " + _ModuleNamespace + ".routes {");
             writer.Indent++;
 
-
             writer.WriteLine(@"
     /**
-      Base class for classes implementing communication with a service stack route.
+     * Base class for classes implementing communication with a service stack route.
     */
     export class RouteAggregator {
         public client : Client;
@@ -170,20 +158,131 @@ namespace ServiceStack.CodeGenerator.TypeScript
             return writer.InnerWriter.ToString();
         }
 
-        private void ProcessTypes(IEnumerable<Type> routeTypes)
-        {
+        #endregion
+
+        #region Methods
+
+        internal string DetermineTsType(Type type) {
+            if (type == typeof(bool)) return "boolean";
+            if (type == typeof(string) || type == typeof(char)) return "string";
+            if (type == typeof(int) || type == typeof(byte) || type == typeof(short) || type == typeof(uint) || type == typeof(ulong) || type == typeof(ushort) || type == typeof(Int64)
+                || type == typeof(UInt64) || type == typeof(double) || type == typeof(decimal)) return "number";
+            if (type == typeof(DateTime) || type == typeof(DateTimeOffset)) return "Date";
+
+            string result;
+            if (type.HasAttribute<RouteAttribute>()) {
+                Type[] interfaces = type.GetTypeInterfaces();
+                if (interfaces.Any(ti => ti == typeof(IReturnVoid))) result = "void";
+                else {
+                    if (type.HasInterface(typeof(IReturn))) {
+                        // When a route implements IReturn<whatever> it ends up with two interfaces on it
+                        // One is a straight IReturn, the other is a generic IReturn
+                        Type ireturn = type.Interfaces().FirstOrDefault(ti => ti.IsGenericType && ti.Name.StartsWith("IReturn`"));
+
+                        if (ireturn == null) result = "void";
+                        else result = DetermineTsType(ireturn.GenericTypeArguments[0]);
+                    }
+                    else result = "void";
+                }
+            }
+            else if (type.IsArray()) result = "Array<" + DetermineTsType(type.GetElementType()) + ">";
+            else if (type.IsNullableType()) {
+                // int?, bool?, etc.  Use the more underlying type
+                result = DetermineTsType(type.GenericTypeArguments[0]);
+            }
+            else if (type.IsGenericType) {
+                Type genericDefinition = type.GetGenericTypeDefinition();
+
+                if (genericDefinition.Name.StartsWith("Dictionary") || genericDefinition.Name.StartsWith("IDictionary")) result = "{[name: " + DetermineTsType(type.GenericTypeArguments[0]) + "]: " + DetermineTsType(type.GenericTypeArguments()[1]) + "}";
+                else if (genericDefinition.Name.StartsWith("List`") || genericDefinition.Name.StartsWith("IList`") || genericDefinition.Name.StartsWith("ICollection`")
+                         || genericDefinition.Name.StartsWith("IEnumerable`")) result = "Array<" + DetermineTsType(type.GenericTypeArguments[0]) + ">";
+                else throw new Exception("Error processing " + type.Name + " - Unknown generic type " + type.GetGenericTypeDefinition().Name);
+            }
+            else {
+                if (type.Namespace != null && !_DTOs.Contains(type) && !_ExclusionNamespaces.Any(ns => type.Namespace.StartsWith(ns))) {
+                    _DTOs.Add(type);
+
+                    // Since the DTO might expose other DTOs we need to examine all of the return types of properties
+                    foreach (PropertyInfo property in type.Properties().Where(p => p.CanRead && p.CanWrite)) DetermineTsType(property.GetMethod.ReturnType);
+                }
+
+                // We put our models in a dtos module in typescript
+                result = _DTOs.Contains(type) ? "dtos." + type.Name : "any";
+            }
+
+            return result;
+        }
+
+
+        private void GenerateJsDoc(TextWriter writer, Type type, PropertyInfo[] properties, bool commentSection = true) {
+            try {
+                var documentation = XmlDocumentationReader.XmlDocumentationReader.XMLFromType(type);
+                
+                if (documentation != null && documentation["summary"] != null) {
+                    string classSummary = documentation["summary"].InnerText.Trim();
+
+                    if (commentSection) writer.WriteLine("/**");
+
+                    foreach (string line in classSummary.Split('\n')) writer.WriteLine(" * " + line);
+
+                    if (properties != null) {
+                        foreach (PropertyInfo property in properties) {
+                            try {
+                                var paramDocs = XmlDocumentationReader.XmlDocumentationReader.XMLFromMember(property);
+                                if (paramDocs != null && paramDocs["summmary"] != null) {
+                                    writer.WriteLine(" * @param " + paramDocs["summary"].InnerText.Trim());
+                                }
+                            }
+                            catch (XmlDocumentationReader.NoDocumentationFoundException e) {
+                                writer.WriteLine(" * @param " + e.Message);
+                            }
+                        }
+                    }
+
+                    if (commentSection) writer.WriteLine("*/");
+                }
+            }
+            catch (XmlDocumentationReader.NoDocumentationFoundException) { }
+            catch (Exception e) {
+                
+                if (commentSection) 
+                    writer.WriteLine("/*");
+                writer.WriteLine((" * Unable to generate documentation:  ") + e.ToString());
+                if (commentSection) 
+                    writer.WriteLine("*/");
+            }
+        }
+
+        private Dictionary<string, Dictionary<Type, List<RouteAttribute>>> GetRegisteredServiceStackRoutes(IEnumerable<Type> routeTypes) {
+            var routes = new Dictionary<string, Dictionary<Type, List<RouteAttribute>>>();
+            foreach (Type rt in routeTypes) {
+                foreach (Attribute attribute in rt.GetCustomAttributes(typeof(RouteAttribute))) {
+                    var route = (RouteAttribute)attribute;
+                    string[] pathHierarchy = route.Path.TrimStart('/').Split('/');
+                    string root = pathHierarchy[0];
+
+                    if (!routes.ContainsKey(root)) routes.Add(root, new Dictionary<Type, List<RouteAttribute>>());
+
+                    if (!routes[root].ContainsKey(rt)) routes[root].Add(rt, new List<RouteAttribute>());
+
+                    routes[root][rt].Add(route);
+                }
+            }
+            return routes;
+        }
+
+        private void ProcessTypes(IEnumerable<Type> routeTypes) {
             _ClientWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
             _ClientWriter.WriteLine(@"
     /**
-    Exposes access to the ServiceStack routes
+     * Exposes access to the ServiceStack routes
     */
     export class Client {");
             _ClientWriter.Indent++;
 
             _ClientRoutesWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 2 };
             var clientConstructorWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
-            clientConstructorWriter.WriteLine(
-@"
+            clientConstructorWriter.WriteLine(@"
         private _$http: ng.IHttpService;
         get $http():ng.IHttpService {
                 return this._$http;
@@ -209,36 +308,28 @@ namespace ServiceStack.CodeGenerator.TypeScript
 
             _RoutesWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
 
-            foreach (var routeRoot in GetRegisteredServiceStackRoutes(routeTypes).OrderBy(rr => rr.Key))
-            {
+            foreach (var routeRoot in GetRegisteredServiceStackRoutes(routeTypes).OrderBy(rr => rr.Key)) {
                 var classWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
                 var routeDtosWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
 
                 _ClientRoutesWriter.WriteLine(routeRoot.Key.ToCamelCase() + ": routes." + routeRoot.Key);
 
-                classWriter.WriteLine(
-                    "export class " + routeRoot.Key + " extends RouteAggregator {");
+                classWriter.WriteLine("export class " + routeRoot.Key + " extends RouteAggregator {");
 
-                clientConstructorWriter.WriteLine(
-                    "this." + routeRoot.Key.ToCamelCase() + " = new routes." + routeRoot.Key + "(this);");
+                clientConstructorWriter.WriteLine("this." + routeRoot.Key.ToCamelCase() + " = new routes." + routeRoot.Key + "(this);");
 
                 classWriter.Indent++;
 
-                foreach (var type in routeRoot.Value.Keys.OrderBy(t => t.Name))
-                {
-                    try
-                    {
-                        var returnTsType = DetermineTsType(type);
+                foreach (Type type in routeRoot.Value.Keys.OrderBy(t => t.Name)) {
+                    try {
+                        string returnTsType = DetermineTsType(type);
 
-                        if (routeRoot.Value[type].Count > 1)
-                        {
+                        if (routeRoot.Value[type].Count > 1) {
                             _ClientWriter.WriteLine(
-                                "// " + type
-                                + "/ exports multiple routes.  Typescript does not support operator overloading and this operation is not supported.  Make seperate routes instead.");
+                                "// " + type + "/ exports multiple routes.  Typescript does not support operator overloading and this operation is not supported.  Make seperate routes instead.");
                         }
 
-                        foreach (var route in routeRoot.Value[type])
-                        {
+                        foreach (RouteAttribute route in routeRoot.Value[type]) {
                             WriteMethodHeader(classWriter, type, route);
 
                             var cg = new RouteCodeGeneration(this, route, type, returnTsType);
@@ -250,14 +341,10 @@ namespace ServiceStack.CodeGenerator.TypeScript
                             // Generate code for route properties
                             cg.ProcessRouteProperties();
 
-                            foreach (var verb in cg.Verbs)
-                            {
-                                WriteTypescriptMethod(classWriter, routeDtosWriter, cg, verb, cg.Verbs.Length > 1, verb == cg.Verbs[0]);
-                            }
+                            foreach (string verb in cg.Verbs) WriteTypescriptMethod(classWriter, routeDtosWriter, cg, verb, cg.Verbs.Length > 1, verb == cg.Verbs[0]);
                         }
                     }
-                    catch (Exception e)
-                    {
+                    catch (Exception e) {
                         _RoutesWriter.WriteLine("// ERROR Processing " + routeRoot.Key + " - " + type.Name);
                         _RoutesWriter.WriteLine("//    " + e.Message);
                     }
@@ -282,52 +369,73 @@ namespace ServiceStack.CodeGenerator.TypeScript
             _ClientWriter.WriteLine("}");
         }
 
-        private void WriteMethodHeader(IndentedTextWriter writer, Type type, RouteAttribute route)
-        {
+        private void WriteClassBody(IndentedTextWriter classWriter, RouteCodeGeneration cg, string verb) {
+            classWriter.Indent++;
+            classWriter.WriteLine("return this.$http<" + cg.ReturnTsType + ">({");
+            classWriter.Indent++;
+
+            // Write out the url array
+            classWriter.Write("url:  [");
+            for (int i = 0; i < cg.UrlPath.Count; i++) {
+                if (i > 0) classWriter.Write(", ");
+                classWriter.Write(cg.UrlPath[i]);
+            }
+            classWriter.WriteLine("].join('/'),");
+            classWriter.WriteLine("method: '" + verb.ToUpper() + "',");
+
+            if (cg.RouteInputPropertyLines.Count > cg.MethodParameters.Count) {
+                if (verb.ToUpper() == "GET") classWriter.WriteLine("params:  routeParams");
+                else classWriter.WriteLine("data:  routeParams");
+            }
+
+            classWriter.Indent--;
+
+            classWriter.WriteLine("});");
+
+            // Close the method
+            classWriter.Indent--;
+            classWriter.WriteLine("}");
+            classWriter.WriteLine();
+        }
+
+        private void WriteMethodHeader(IndentedTextWriter writer, Type type, RouteAttribute route) {
             writer.WriteLine("/**");
-            writer.WriteLine("C# Type:  " + type.Namespace + "." + type.Name);
-            if (!string.IsNullOrEmpty(route.Path)) writer.WriteLine("Path: " + route.Path);
-            if (!string.IsNullOrEmpty(route.Verbs)) writer.WriteLine("Verbs: " + route.Verbs);
-            if (!string.IsNullOrEmpty(route.Summary)) writer.WriteLine("Summary:  " + route.Summary);
-            if (!string.IsNullOrEmpty(route.Notes)) writer.WriteLine("Notes:  " + route.Notes);
+            writer.WriteLine(" * C# Type:  " + type.Namespace + "." + type.Name);
+            if (!string.IsNullOrEmpty(route.Path)) writer.WriteLine(" * Path: " + route.Path);
+            if (!string.IsNullOrEmpty(route.Verbs)) writer.WriteLine(" * Verbs: " + route.Verbs);
+            if (!string.IsNullOrEmpty(route.Summary)) writer.WriteLine(" * Summary:  " + route.Summary);
+            if (!string.IsNullOrEmpty(route.Notes)) writer.WriteLine(" * Notes:  " + route.Notes);
+            GenerateJsDoc(writer, type, null, false);
             writer.WriteLine("*/");
         }
 
-        private void WriteTypescriptMethod(IndentedTextWriter classWriter, IndentedTextWriter routeDtoWriter, RouteCodeGeneration cg, string verb, bool includeVerbNameInMethod, bool writeInputDto)
-        {
+        private void WriteTypescriptMethod(IndentedTextWriter classWriter, IndentedTextWriter routeDtoWriter, RouteCodeGeneration cg, string verb, bool includeVerbNameInMethod, bool writeInputDto) {
             classWriter.Write(cg.RouteType.Name + (includeVerbNameInMethod ? "_" + verb : string.Empty));
             classWriter.Write(" = (");
 
             // Optional parameters must come last in typescript
-            for (int i = 0; i < cg.MethodParameters.Count; i++)
-            {
-                if (i > 0)
-                {
-                    classWriter.Write(", ");
-                }
+            for (int i = 0; i < cg.MethodParameters.Count; i++) {
+                if (i > 0) classWriter.Write(", ");
 
                 classWriter.Write(cg.MethodParameters[i]);
             }
 
-            if (cg.RouteInputPropertyLines.Count > 0)
-            {
-                if (cg.MethodParameters.Count > 0)
-                    classWriter.Write(", ");
+            if (cg.RouteInputPropertyLines.Count > 0) {
+                if (cg.MethodParameters.Count > 0) classWriter.Write(", ");
 
-                classWriter.Write("routeParams : " + cg.RouteInputDtoName);
+                classWriter.Write("routeParams ");
+                if (cg.RouteInputHasOnlyOptionalParams)
+                    classWriter.Write("?");
+                
+                classWriter.Write(": " + cg.RouteInputDtoName);
 
-                if (writeInputDto)
-                {
+                if (writeInputDto) {
+                    //GenerateJsDoc(routeDtoWriter, cg.RouteType, );
+                    
                     routeDtoWriter.WriteLine("export interface " + cg.RouteInputDtoName + " {");
                     routeDtoWriter.Indent++;
 
-                    foreach (var line in cg.RouteInputPropertyLines)
-                    {
-                        if (!string.IsNullOrEmpty(line))
-                        {
-                            routeDtoWriter.WriteLine(line);
-                        }
-                    }
+                    foreach (string line in cg.RouteInputPropertyLines) if (!string.IsNullOrEmpty(line)) routeDtoWriter.WriteLine(line);
 
                     routeDtoWriter.Indent--;
                     routeDtoWriter.WriteLine("}");
@@ -353,209 +461,19 @@ namespace ServiceStack.CodeGenerator.TypeScript
             WriteClassBody(classWriter, cg, verb);
         }
 
-        private void WriteClassBody(IndentedTextWriter classWriter, RouteCodeGeneration cg, string verb)
-        {
-            classWriter.Indent++;
-            /*
-                        if (cg.RouteInputProperties.Any())
-                        {
-                            classWriter.WriteLine("var jsonData = {");
-                            classWriter.Indent++;
-
-                            for (var i = 0; i < cg.RouteInputProperties.Count; i++)
-                            {
-                                classWriter.WriteLine(cg.RouteInputProperties[i] + (i + 1 < cg.RouteInputProperties.Count ? "," : ""));
-                            }
-
-                            classWriter.Indent--;
-                            classWriter.WriteLine("};");
-                        }*/
-
-            classWriter.WriteLine("return this.$http<" + cg.ReturnTsType + ">({");
-            classWriter.Indent++;
-
-            // Write out the url array
-            classWriter.Write("url:  [");
-            for (int i = 0; i < cg.UrlPath.Count; i++)
-            {
-                if (i > 0)
-                {
-                    classWriter.Write(", ");
-                }
-                classWriter.Write(cg.UrlPath[i]);
-            }
-            classWriter.WriteLine("].join('/'),");
-            classWriter.WriteLine("method: '" + verb.ToUpper() + "',");
-
-            if (cg.RouteInputPropertyLines.Count > cg.MethodParameters.Count)
-            {
-                if (verb.ToUpper() == "GET")
-                {
-                    classWriter.WriteLine("params:  routeParams");
-                }
-                else
-                {
-                    classWriter.WriteLine("data:  routeParams");
-                }
-            }
-
-            classWriter.Indent--;
-
-            classWriter.WriteLine("});");
-
-            // Close the method
-            classWriter.Indent--;
-            classWriter.WriteLine("}");
-            classWriter.WriteLine();
-        }
-
-        internal string DetermineTsType(Type type)
-        {
-            if (type == typeof(bool)) return "boolean";
-            else if (type == typeof(string) || type == typeof(char)) return "string";
-            else if (type == typeof(int) || type == typeof(byte) || type == typeof(short)
-                || type == typeof(uint) || type == typeof(ulong) || type == typeof(ushort)
-                || type == typeof(Int64) || type == typeof(UInt64)
-                || type == typeof(double) || type == typeof(decimal)) return "number";
-            else if (type == typeof(DateTime) || type == typeof(DateTimeOffset)) return "Date";
-
-            string result;
-            if (type.HasAttribute<RouteAttribute>())
-            {
-                var interfaces = type.GetTypeInterfaces();
-                if (interfaces.Any(ti => ti == typeof(IReturnVoid)))
-                {
-                    result = "void";
-                }
-                else
-                {
-                    if (type.HasInterface(typeof(IReturn)))
-                    {
-                        // When a route implements IReturn<whatever> it ends up with two interfaces on it
-                        // One is a straight IReturn, the other is a generic IReturn
-                        var ireturn = type.Interfaces().FirstOrDefault(ti => ti.IsGenericType && ti.Name.StartsWith("IReturn`"));
-
-                        if (ireturn == null)
-                        {
-                            result = "void";
-                        }
-                        else
-                        {
-                            result = DetermineTsType(ireturn.GenericTypeArguments[0]);
-                        }
-                    }
-                    else
-                    {
-                        result = "void";
-                    }
-                }
-            }
-            else if (type.IsArray())
-            {
-                result = "Array<" + DetermineTsType(type.GetElementType()) + ">";
-            }
-            else if (type.IsNullableType())
-            {
-                // int?, bool?, etc.  Use the more underlying type
-                result = DetermineTsType(type.GenericTypeArguments[0]);
-            }
-            else if (type.IsGenericType)
-            {
-                var genericDefinition = type.GetGenericTypeDefinition();
-
-                if (genericDefinition.Name.StartsWith("Dictionary") || genericDefinition.Name.StartsWith("IDictionary"))
-                {
-                    result = "{[name: " + DetermineTsType(type.GenericTypeArguments[0]) + "]: " + DetermineTsType(type.GenericTypeArguments()[1]) + "}";
-                }
-                else if (genericDefinition.Name.StartsWith("List`")
-                    || genericDefinition.Name.StartsWith("IList`")
-                    || genericDefinition.Name.StartsWith("ICollection`")
-                    || genericDefinition.Name.StartsWith("IEnumerable`"))
-                {
-                    result = "Array<" + DetermineTsType(type.GenericTypeArguments[0]) + ">";
-                }
-                else
-                {
-                    throw new Exception("Error processing " + type.Name + " - Unknown generic type " + type.GetGenericTypeDefinition().Name);
-                }
-            }
-            else
-            {
-                if (type.Namespace != null && !_DTOs.Contains(type) && !_ExclusionNamespaces.Any(ns => type.Namespace.StartsWith(ns)))
-                {
-                    _DTOs.Add(type);
-
-                    // Since the DTO might expose other DTOs we need to examine all of the return types of properties
-                    foreach (var property in type.Properties().Where(p => p.CanRead && p.CanWrite))
-                    {
-                        DetermineTsType(property.GetMethod.ReturnType);
-                    }
-                }
-
-                // We put our models in a dtos module in typescript
-                result = _DTOs.Contains(type) ? "dtos." + type.Name : "any";
-            }
-
-            return result;
-        }
-
-        /*private static Dictionary<string, Dictionary<Type, List<RouteAttribute>>> GetRegisteredServiceStackRoutes()
-        {
-            var routeTypes =
-                AppDomain.CurrentDomain.GetAssemblies()
-                    .Where(a => a.FullName.StartsWith("Clarity.Ecommerce.Service"))
-                    .SelectMany(
-                        a =>
-                        a.GetTypes()
-                            .Where(t => t.CustomAttributes.Any(attr => attr.AttributeType == typeof(RouteAttribute))));
-        }*/
-
-        Dictionary<string, Dictionary<Type, List<RouteAttribute>>> GetRegisteredServiceStackRoutes(IEnumerable<Type> routeTypes)
-        {
-            var routes = new Dictionary<string, Dictionary<Type, List<RouteAttribute>>>();
-            foreach (var rt in routeTypes)
-            {
-                foreach (var attribute in rt.GetCustomAttributes(typeof(RouteAttribute)))
-                {
-                    var route = (RouteAttribute)attribute;
-                    var pathHierarchy = route.Path.TrimStart('/').Split('/');
-                    var root = pathHierarchy[0];
-
-                    if (!routes.ContainsKey(root))
-                    {
-                        routes.Add(root, new Dictionary<Type, List<RouteAttribute>>());
-                    }
-
-                    if (!routes[root].ContainsKey(rt))
-                    {
-                        routes[root].Add(rt, new List<RouteAttribute>());
-                    }
-
-                    routes[root][rt].Add(route);
-                }
-            }
-            return routes;
-        }
+        #endregion
     }
 
-    internal class RouteCodeGeneration
-    {
+    internal class RouteCodeGeneration {
+        #region Fields
+
         private readonly TypescriptCodeGenerator _CodeGenerator;
 
-        public int ParamsWritten { get; set; }
+        #endregion
 
-        public List<string> MethodParameters { get; private set; }
-        public List<string> MethodParametersOptional { get; private set; }
+        #region Constructors and Destructors
 
-
-        public Type RouteType { get; private set; }
-
-        public List<string> UrlPath { get; private set; }
-        public HashSet<string> PropertiesProcessed { get; private set; }
-        public List<string> RouteInputPropertyLines { get; private set; }
-        public string[] Verbs { get; private set; }
-        public RouteCodeGeneration(TypescriptCodeGenerator codeGenerator, RouteAttribute route, Type routeType, string returnTsType)
-        {
+        public RouteCodeGeneration(TypescriptCodeGenerator codeGenerator, RouteAttribute route, Type routeType, string returnTsType) {
             _CodeGenerator = codeGenerator;
             Route = route;
             RouteType = routeType;
@@ -567,146 +485,136 @@ namespace ServiceStack.CodeGenerator.TypeScript
             RouteInputPropertyLines = new List<string>();
             Verbs = string.IsNullOrEmpty(route.Verbs) ? new[] { "get" } : route.Verbs.ToLower().Split(',');
             ReturnTsType = returnTsType;
+            RouteInputHasOnlyOptionalParams = true;
         }
+
+        #endregion
+
+        #region Public Properties
+
+        public List<string> MethodParameters { get; private set; }
+
+        public List<string> MethodParametersOptional { get; private set; }
+
+        public int ParamsWritten { get; set; }
+
+        public HashSet<string> PropertiesProcessed { get; private set; }
 
         public string ReturnTsType { get; private set; }
 
         public RouteAttribute Route { get; private set; }
 
-        public string RouteInputDtoName
-        {
-            get
-            {
+        public string RouteInputDtoName {
+            get {
                 return RouteType.Name + "Dto";
             }
         }
 
-        public void ParseRoutePath()
-        {
-            var pathHierarchy = Route.Path.Trim('/').Split('/');
+        public List<string> RouteInputPropertyLines { get; private set; }
 
-            for (var i = 0; i < pathHierarchy.Length; i++)
-            {
-                var param = pathHierarchy[i];
+        public Type RouteType { get; private set; }
 
-                if (!IsRouteParam(param))
-                {
-                    UrlPath.Add("\"" + param + "\"");
-                }
-                else
-                {
-                    ProcessRouteParameter(param);
-                }
-            }
-        }
+        public List<string> UrlPath { get; private set; }
 
-        private void ProcessRouteParameter(string param)
-        {
-            param = param.Trim('{', '}');
-
-            PropertyInfo property = null;
-            try
-            {
-                property = RouteType.GetProperty(param);
-            }
-            catch (Exception)
-            {
-            }
-
-            if (property == null)
-            {
-                MethodParameters.Add("\n      /* CANNOT FIND " + param + " */\n   ");
-            }
-            else
-            {
-                param = param.ToCamelCase();
-                ProcessClrProperty(property, IsRouteParam: true);
-
-                // Uri Encode string parameters.
-                if (property.GetGetMethod().ReturnType == typeof(string))
-                {
-                    UrlPath.Add("encodeURIComponent(" + param + ")");
-                }
-                else
-                {
-                    UrlPath.Add(param);
-                }
-
-            }
-        }
+        public string[] Verbs { get; private set; }
 
         /// <summary>
-        /// Generates typescript code for a given property
+        /// Is every input DTO property optional?
         /// </summary>
-        /// <param name="property"></param>
-        /// <param name="IsRouteParam"></param>
-        private void ProcessClrProperty(PropertyInfo property, bool IsRouteParam = false)
-        {
-            this.PropertiesProcessed.Add(property.Name);
+        public bool RouteInputHasOnlyOptionalParams { get; set; }
 
-            // TODO: Add comments for ApiMember properties
-            var docAttr = property.GetCustomAttribute<ApiMemberAttribute>();
-            
-            var returnType = property.GetMethod.ReturnType;
-            // Optional parameters
-            if (!IsRouteParam &&
-                (returnType.IsNullableType() || returnType.IsClass()) && (docAttr == null || !docAttr.IsRequired)) // Optional param.  Could be string or a DTO type.  
-            {
-                /*MethodParametersOptional.Add(property.Name.ToCamelCase() + "?: "
-                                  + _CodeGenerator.DetermineTsType(returnType));
-            */
-                if (docAttr != null)
-                {
-                    RouteInputPropertyLines.Add(EmitComment(docAttr));
-                }
-                RouteInputPropertyLines.Add(property.Name + "?: " + _CodeGenerator.DetermineTsType(returnType) + ";");
-            }
-            else // Required parameter
-            {
-                if (!IsRouteParam)
-                {
-                    if (docAttr != null)
-                    {
-                        RouteInputPropertyLines.Add(EmitComment(docAttr));
-                    }
-                    RouteInputPropertyLines.Add(property.Name + ": " + _CodeGenerator.DetermineTsType(returnType) + ";");
-                }
-                else
-                {
-                    MethodParameters.Add(
-                        property.Name.ToCamelCase() + ": " + _CodeGenerator.DetermineTsType(returnType));
-                }
-            }
+        #endregion
 
-            ParamsWritten++;
+        #region Public Methods and Operators
+
+        public void ParseRoutePath() {
+            string[] pathHierarchy = Route.Path.Trim('/').Split('/');
+
+            for (int i = 0; i < pathHierarchy.Length; i++) {
+                string param = pathHierarchy[i];
+
+                if (!IsRouteParam(param)) UrlPath.Add("\"" + param + "\"");
+                else ProcessRouteParameter(param);
+            }
         }
 
-        private string EmitComment(ApiMemberAttribute docAttr)
-        {
-            var result = string.Empty;
-            if (!string.IsNullOrEmpty(docAttr.Description))
-            {
-                result += "// " + docAttr.Description;
-            }
-            return result;
-        }
-
-        public void ProcessRouteProperties()
-        {
-            foreach (var property in
-                RouteType.GetProperties()
-                    .Where(p => p.HasAttribute<ApiMemberAttribute>() || (p.CanRead && p.CanWrite)))
-            {
+        public void ProcessRouteProperties() {
+            foreach (PropertyInfo property in
+                RouteType.GetProperties().Where(p => p.HasAttribute<ApiMemberAttribute>() || (p.CanRead && p.CanWrite))) {
                 if (PropertiesProcessed.Contains(property.Name)) continue;
 
                 ProcessClrProperty(property);
             }
         }
 
-        private static bool IsRouteParam(string param)
-        {
+        #endregion
+
+        #region Methods
+
+        private static bool IsRouteParam(string param) {
             return param.StartsWith("{") && param.EndsWith("}");
         }
-    }
 
+        private string EmitComment(ApiMemberAttribute docAttr) {
+            string result = string.Empty;
+            if (!string.IsNullOrEmpty(docAttr.Description)) result += "// " + docAttr.Description;
+            return result;
+        }
+
+        /// <summary>
+        ///     Generates typescript code for a given property
+        /// </summary>
+        /// <param name="property"></param>
+        /// <param name="IsRouteParam"></param>
+        private void ProcessClrProperty(PropertyInfo property, bool IsRouteParam = false) {
+            PropertiesProcessed.Add(property.Name);
+
+            // TODO: Add comments for ApiMember properties
+            var docAttr = property.GetCustomAttribute<ApiMemberAttribute>();
+
+            Type returnType = property.GetMethod.ReturnType;
+            // Optional parameters
+            if (!IsRouteParam && (returnType.IsNullableType() || returnType.IsClass()) && (docAttr == null || !docAttr.IsRequired)) // Optional param.  Could be string or a DTO type.  
+            {
+                /*MethodParametersOptional.Add(property.Name.ToCamelCase() + "?: "
+                                  + _CodeGenerator.DetermineTsType(returnType));
+            */
+                if (docAttr != null) RouteInputPropertyLines.Add(EmitComment(docAttr));
+                RouteInputPropertyLines.Add(property.Name + "?: " + _CodeGenerator.DetermineTsType(returnType) + ";");
+            }
+            else // Required parameter
+            {
+                if (!IsRouteParam) {
+                    if (docAttr != null) RouteInputPropertyLines.Add(EmitComment(docAttr));
+                    RouteInputHasOnlyOptionalParams = false;
+                    RouteInputPropertyLines.Add(property.Name + ": " + _CodeGenerator.DetermineTsType(returnType) + ";");
+                }
+                else MethodParameters.Add(property.Name.ToCamelCase() + ": " + _CodeGenerator.DetermineTsType(returnType));
+            }
+
+            ParamsWritten++;
+        }
+
+        private void ProcessRouteParameter(string param) {
+            param = param.Trim('{', '}');
+
+            PropertyInfo property = null;
+            try {
+                property = RouteType.GetProperty(param);
+            }
+            catch (Exception) { }
+
+            if (property == null) MethodParameters.Add("\n      /* CANNOT FIND " + param + " */\n   ");
+            else {
+                param = param.ToCamelCase();
+                ProcessClrProperty(property, true);
+
+                // Uri Encode string parameters.
+                if (property.GetGetMethod().ReturnType == typeof(string)) UrlPath.Add("encodeURIComponent(" + param + ")");
+                else UrlPath.Add(param);
+            }
+        }
+
+        #endregion
+    }
 }
