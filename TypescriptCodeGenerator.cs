@@ -217,13 +217,15 @@ namespace ServiceStack.CodeGenerator.TypeScript {
         private void GenerateJsDoc(TextWriter writer, Type type, PropertyInfo[] properties, bool commentSection = true) {
             try {
                 var documentation = XmlDocumentationReader.XmlDocumentationReader.XMLFromType(type);
-                
+
                 if (documentation != null && documentation["summary"] != null) {
                     string classSummary = documentation["summary"].InnerText.Trim();
 
-                    if (commentSection) writer.WriteLine("/**");
+                    if (commentSection)
+                        writer.WriteLine("/**");
 
-                    foreach (string line in classSummary.Split('\n')) writer.WriteLine(" * " + line);
+                    foreach (string line in classSummary.Split('\n'))
+                        writer.WriteLine(" * " + line);
 
                     if (properties != null) {
                         foreach (PropertyInfo property in properties) {
@@ -239,16 +241,18 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                         }
                     }
 
-                    if (commentSection) writer.WriteLine("*/");
+                    if (commentSection)
+                        writer.WriteLine("*/");
                 }
             }
-            catch (XmlDocumentationReader.NoDocumentationFoundException) { }
+            catch (XmlDocumentationReader.NoDocumentationFoundException) {}
+            catch (FileNotFoundException) {}
             catch (Exception e) {
-                
-                if (commentSection) 
+
+                if (commentSection)
                     writer.WriteLine("/*");
                 writer.WriteLine((" * Unable to generate documentation:  ") + e.ToString());
-                if (commentSection) 
+                if (commentSection)
                     writer.WriteLine("*/");
             }
         }
@@ -319,7 +323,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 clientConstructorWriter.WriteLine("this." + routeRoot.Key.ToCamelCase() + " = new routes." + routeRoot.Key + "(this);");
 
                 classWriter.Indent++;
-
+                
                 foreach (Type type in routeRoot.Value.Keys.OrderBy(t => t.Name)) {
                     try {
                         string returnTsType = DetermineTsType(type);
@@ -327,6 +331,11 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                         if (routeRoot.Value[type].Count > 1) {
                             _ClientWriter.WriteLine(
                                 "// " + type + "/ exports multiple routes.  Typescript does not support operator overloading and this operation is not supported.  Make seperate routes instead.");
+                        }
+
+                        var customAttribute = type.GetCustomAttribute<TypescriptCodeGeneratorAttribute>();
+                        if (customAttribute != null && customAttribute.CacheResult) {
+                            classWriter.WriteLine("private _" + type.Name + "Cached: ng.IPromise<" + returnTsType + ">;");
                         }
 
                         foreach (RouteAttribute route in routeRoot.Value[type]) {
@@ -341,7 +350,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                             // Generate code for route properties
                             cg.ProcessRouteProperties();
 
-                            foreach (string verb in cg.Verbs) WriteTypescriptMethod(classWriter, routeDtosWriter, cg, verb, cg.Verbs.Length > 1, verb == cg.Verbs[0]);
+                            foreach (string verb in cg.Verbs) WriteTypescriptMethod(classWriter, routeDtosWriter, cg, verb, cg.Verbs.Length > 1, verb == cg.Verbs[0]);                            
                         }
                     }
                     catch (Exception e) {
@@ -369,9 +378,20 @@ namespace ServiceStack.CodeGenerator.TypeScript {
             _ClientWriter.WriteLine("}");
         }
 
-        private void WriteClassBody(IndentedTextWriter classWriter, RouteCodeGeneration cg, string verb) {
+        private void WriteRouteMethodBody(IndentedTextWriter classWriter, RouteCodeGeneration cg, string verb) {
             classWriter.Indent++;
-            classWriter.WriteLine("return this.$http<" + cg.ReturnTsType + ">({");
+            var customAttribute = cg.RouteType.GetCustomAttribute<TypescriptCodeGeneratorAttribute>();
+            var cacheResult = (customAttribute != null && customAttribute.CacheResult);
+
+            if (cacheResult) {
+                classWriter.WriteLine("if (this._" + cg.RouteType.Name + "Cached == null) {");
+                classWriter.Indent++;
+                classWriter.WriteLine("this._" + cg.RouteType.Name + "Cached = this.$http<" + cg.ReturnTsType + ">({");                              
+            }
+            else { 
+                classWriter.WriteLine("return this.$http<" + cg.ReturnTsType + ">({");
+            }
+                
             classWriter.Indent++;
 
             // Write out the url array
@@ -391,6 +411,12 @@ namespace ServiceStack.CodeGenerator.TypeScript {
             classWriter.Indent--;
 
             classWriter.WriteLine("});");
+
+            if (cacheResult) {
+                classWriter.Indent--;
+                classWriter.WriteLine("}");
+                classWriter.WriteLine("return this._" + cg.RouteType.Name + "Cached;");
+            }
 
             // Close the method
             classWriter.Indent--;
@@ -458,7 +484,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
              */
             classWriter.WriteLine(" => {");
 
-            WriteClassBody(classWriter, cg, verb);
+            WriteRouteMethodBody(classWriter, cg, verb);
         }
 
         #endregion
@@ -616,5 +642,14 @@ namespace ServiceStack.CodeGenerator.TypeScript {
         }
 
         #endregion
+    }
+
+    [AttributeUsage(AttributeTargets.Class)]
+    public class TypescriptCodeGeneratorAttribute : Attribute {
+        public TypescriptCodeGeneratorAttribute() {
+            CacheResult = false;
+        }
+
+        public bool CacheResult { get; set; }
     }
 }
