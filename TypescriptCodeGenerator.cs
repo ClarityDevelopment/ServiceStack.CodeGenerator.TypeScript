@@ -316,7 +316,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 var classWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
                 var routeDtosWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
 
-                _ClientRoutesWriter.WriteLine(routeRoot.Key.ToCamelCase() + ": routes." + routeRoot.Key);
+                _ClientRoutesWriter.WriteLine(routeRoot.Key.ToCamelCase() + ": routes." + routeRoot.Key + ";");
 
                 classWriter.WriteLine("export class " + routeRoot.Key + " extends RouteAggregator {");
 
