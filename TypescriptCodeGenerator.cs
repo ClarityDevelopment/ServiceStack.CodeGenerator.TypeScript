@@ -193,9 +193,13 @@ namespace ServiceStack.CodeGenerator.TypeScript {
             else if (type.IsGenericType) {
                 Type genericDefinition = type.GetGenericTypeDefinition();
 
-                if (genericDefinition.Name.StartsWith("Dictionary") || genericDefinition.Name.StartsWith("IDictionary")) result = "{[name: " + DetermineTsType(type.GenericTypeArguments[0]) + "]: " + DetermineTsType(type.GenericTypeArguments()[1]) + "}";
+                if (genericDefinition.Name.StartsWith("Dictionary") || genericDefinition.Name.StartsWith("IDictionary")) {
+                    result = "{[name: " + DetermineTsType(type.GenericTypeArguments[0]) + "]: " + DetermineTsType(type.GenericTypeArguments()[1]) + "}";
+                }
                 else if (genericDefinition.Name.StartsWith("List`") || genericDefinition.Name.StartsWith("IList`") || genericDefinition.Name.StartsWith("ICollection`")
-                         || genericDefinition.Name.StartsWith("IEnumerable`")) result = "Array<" + DetermineTsType(type.GenericTypeArguments[0]) + ">";
+                         || genericDefinition.Name.StartsWith("IEnumerable`")) {
+                    result = "Array<" + DetermineTsType(type.GenericTypeArguments[0]) + ">";
+                } 
                 else throw new Exception("Error processing " + type.Name + " - Unknown generic type " + type.GetGenericTypeDefinition().Name);
             }
             else {
@@ -203,7 +207,10 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                     _DTOs.Add(type);
 
                     // Since the DTO might expose other DTOs we need to examine all of the return types of properties
-                    foreach (PropertyInfo property in type.Properties().Where(p => p.CanRead && p.CanWrite)) DetermineTsType(property.GetMethod.ReturnType);
+                    foreach (PropertyInfo property in type.Properties().Where(p => p.CanRead && p.CanWrite && p.CustomAttributes.All(a => a.AttributeType != typeof(IgnoreDataMemberAttribute)))) {
+                         DetermineTsType(property.GetMethod.ReturnType);
+                        
+                    }
                 }
 
                 // We put our models in a dtos module in typescript
@@ -245,8 +252,8 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                         writer.WriteLine("*/");
                 }
             }
-            catch (XmlDocumentationReader.NoDocumentationFoundException) {}
-            catch (FileNotFoundException) {}
+            catch (XmlDocumentationReader.NoDocumentationFoundException) { }
+            catch (FileNotFoundException) { }
             catch (Exception e) {
 
                 if (commentSection)
@@ -323,7 +330,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 clientConstructorWriter.WriteLine("this." + routeRoot.Key.ToCamelCase() + " = new routes." + routeRoot.Key + "(this);");
 
                 classWriter.Indent++;
-                
+
                 foreach (Type type in routeRoot.Value.Keys.OrderBy(t => t.Name)) {
                     try {
                         string returnTsType = DetermineTsType(type);
@@ -335,7 +342,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
 
                         var customAttribute = type.GetCustomAttribute<TypescriptCodeGeneratorAttribute>();
                         if (customAttribute != null && customAttribute.CacheResult) {
-                            classWriter.WriteLine("private _" + type.Name + "Cached: ng.IPromise<" + returnTsType + ">;");
+                            classWriter.WriteLine("private _" + type.Name + "Cached: ng.IHttpPromise<" + returnTsType + ">;");
                         }
 
                         foreach (RouteAttribute route in routeRoot.Value[type]) {
@@ -350,7 +357,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                             // Generate code for route properties
                             cg.ProcessRouteProperties();
 
-                            foreach (string verb in cg.Verbs) WriteTypescriptMethod(classWriter, routeDtosWriter, cg, verb, cg.Verbs.Length > 1, verb == cg.Verbs[0]);                            
+                            foreach (string verb in cg.Verbs) WriteTypescriptMethod(classWriter, routeDtosWriter, cg, verb, cg.Verbs.Length > 1, verb == cg.Verbs[0]);
                         }
                     }
                     catch (Exception e) {
@@ -386,12 +393,12 @@ namespace ServiceStack.CodeGenerator.TypeScript {
             if (cacheResult) {
                 classWriter.WriteLine("if (this._" + cg.RouteType.Name + "Cached == null) {");
                 classWriter.Indent++;
-                classWriter.WriteLine("this._" + cg.RouteType.Name + "Cached = this.$http<" + cg.ReturnTsType + ">({");                              
+                classWriter.WriteLine("this._" + cg.RouteType.Name + "Cached = this.$http<" + cg.ReturnTsType + ">({");
             }
-            else { 
+            else {
                 classWriter.WriteLine("return this.$http<" + cg.ReturnTsType + ">({");
             }
-                
+
             classWriter.Indent++;
 
             // Write out the url array
@@ -452,12 +459,12 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 classWriter.Write("routeParams ");
                 if (cg.RouteInputHasOnlyOptionalParams)
                     classWriter.Write("?");
-                
+
                 classWriter.Write(": " + cg.RouteInputDtoName);
 
                 if (writeInputDto) {
                     //GenerateJsDoc(routeDtoWriter, cg.RouteType, );
-                    
+
                     routeDtoWriter.WriteLine("export interface " + cg.RouteInputDtoName + " {");
                     routeDtoWriter.Indent++;
 

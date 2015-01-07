@@ -60,6 +60,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IgnoreDataMemberAttribute.cs" />
     <Compile Include="Tests\SimpleRouteTest.cs" />
     <Compile Include="TypescriptCodeGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
