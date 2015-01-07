@@ -26,7 +26,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
     using System.IO;
     using System.Linq;
     using System.Reflection;
-    using System.Runtime.Remoting.Messaging;
+    using System.Runtime.Serialization;
 
     public class TypescriptCodeGenerator {
         #region Constants
@@ -96,7 +96,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
 
             // Write out the DTOs
             foreach (Type dto in _DTOs.OrderBy(t => t.Name)) {
-                PropertyInfo[] dtoProperties = dto.GetProperties().Where(prop => prop.CanRead && prop.CanWrite).ToArray();
+                PropertyInfo[] dtoProperties = dto.GetProperties().Where(prop => prop.CanRead && !prop.HasAttribute<IgnoreDataMemberAttribute>()).ToArray();
 
                 GenerateJsDoc(writer, dto, dtoProperties, true);
 
@@ -206,10 +206,12 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 if (type.Namespace != null && !_DTOs.Contains(type) && !_ExclusionNamespaces.Any(ns => type.Namespace.StartsWith(ns))) {
                     _DTOs.Add(type);
 
+                    if (type.Name == "CartModel") {
+                        int i = 0;
+                    }
                     // Since the DTO might expose other DTOs we need to examine all of the return types of properties
-                    foreach (PropertyInfo property in type.Properties().Where(p => p.CanRead && p.CanWrite && p.CustomAttributes.All(a => a.AttributeType != typeof(IgnoreDataMemberAttribute)))) {
-                         DetermineTsType(property.GetMethod.ReturnType);
-                        
+                    foreach (PropertyInfo property in type.Properties().Where(p => p.CanRead && !p.HasAttribute<IgnoreDataMemberAttribute>())) {
+                        DetermineTsType(property.GetMethod.ReturnType);                        
                     }
                 }
 
