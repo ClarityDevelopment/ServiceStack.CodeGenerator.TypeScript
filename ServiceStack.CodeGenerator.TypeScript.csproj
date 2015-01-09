@@ -91,12 +91,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>client.tt</DependentUpon>
     </TypeScriptCompile>
-    <TypeScriptCompile Include="Scripts\dtos.ts">
-      <DependentUpon>client.tt</DependentUpon>
-    </TypeScriptCompile>
-    <TypeScriptCompile Include="Scripts\routes.ts">
-      <DependentUpon>client.tt</DependentUpon>
-    </TypeScriptCompile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Scripts\client.tt">
