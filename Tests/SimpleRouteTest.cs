@@ -1,5 +1,6 @@
 ﻿namespace ServiceStack.CodeGenerator.TypeScript.Tests {
     using System;
+    using System.Collections.Generic;
 
     using Xunit;
 
@@ -70,7 +71,7 @@
 
         [Fact]
         public void SimpleRoute() {
-            var cg = new TypescriptCodeGenerator(new Type[] { typeof(RouteWithParam) }, "cv.cef.api", new string[] { });
+            var cg = new TypescriptCodeGenerator(new List<Type> { typeof(RouteWithParam) }, "cv.cef.api", new string[] { });
         }
 
         #endregion

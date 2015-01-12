@@ -3,7 +3,6 @@
 <#@ assembly name="System.Core" #>
 <#@ assembly name="$(TargetDir)\ServiceStack.Text.dll" #>
 <#@ assembly name="$(TargetDir)\ServiceStack.Interfaces.dll" #>
-
 <#@ assembly name="System.Web.dll" #>
 <#@ assembly name="$(TargetDir)\ServiceStack.CodeGenerator.TypeScript.dll" #>
 <#@ import namespace="System.Linq" #>
@@ -14,17 +13,21 @@
 <#@ import namespace="ServiceStack.CodeGenerator.TypeScript" #>
 <#@output extension=".ts"#>
 <# var manager = Manager.Create(Host, GenerationEnvironment); #>
+/// <script path="../scripts/typings/angularjs/angular.d.ts" />
+
+module cv.cef {
 <#
+//    foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+//        WriteLine(assembly.FullName);
+        
     // Grab the routes to generate code for
     var routeTypes =
-        AppDomain.CurrentDomain.GetAssemblies()
-            //.Where(a => a.FullName.StartsWith("ServiceStack.CodeGenerator.TypeScript.Tests"))
-            .SelectMany(
-                a =>
-                a.GetTypes()
-                    .Where(t => 
-                            t.Namespace == "ServiceStack.CodeGenerator.TypeScript.Tests" &&
-                            t.CustomAttributes.Any(attr => attr.AttributeType == typeof(RouteAttribute))));
+        AppDomain.CurrentDomain.GetAssemblies().First(
+        a => a.FullName.StartsWith("ServiceStack.CodeGenerator.TypeScript"))
+        .GetTypes()
+            .Where(t => 
+                t.Namespace == "ServiceStack.CodeGenerator.TypeScript.Tests" &&
+                t.CustomAttributes.Any(attr => attr.AttributeType == typeof(RouteAttribute)));
 
 
 //    foreach (var t in routeTypes)
@@ -32,21 +35,15 @@
 
     var cg = new TypescriptCodeGenerator(
             routeTypes, 
-            "cef",
+            "ClarityEcomService",
             new string[]{"Clarity.Ecommerce.DataModel"}     // Array of namespaces to ignore when generating DTOs
                                                             // We added this because our DTOs in some cases included an entity type which we did not want to see propagated to our typescript
             );        
         
-    WriteLine(cg.GenerateDtos());
-    
-    WriteLine(cg.GenerateRoutes());
-    
-    #>
-///<reference path="_references.ts"/>
-
-<#
-    WriteLine(cg.GenerateClient());    
+    WriteLine(cg.Generate());
  #>
+}
+
 <# manager.Process(true); #>
 <#+   
 #>

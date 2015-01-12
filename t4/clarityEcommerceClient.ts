@@ -1,28 +1,47 @@
-﻿
+﻿ 
  
  
- 
-// ----- DTOS -----
-    export interface SomeDto {
-        ID: number;
-        Value?: string;
+/// <script path="../scripts/typings/angularjs/angular.d.ts" />
+
+module cv.cef {
+
+    /**
+     * Exposes access to the ServiceStack routes
+    */
+    export interface IClarityEcomService {
+        test: Test;
     }
-
-
-   
-    // ----- Routes -----
     
     /**
-    * Base class for classes implementing communication with a service stack route.
+     * Exposes access to the ServiceStack routes
     */
-    export class RouteAggregator {
-        public service : cef;
-        get rootUrl() : string { return this.service.rootUrl; }
-        get $http() : ng.IHttpService { return this.service.$http; }
+    class ClarityEcomService implements IClarityEcomService{
+        test : Test
+        
+        constructor($http: ng.IHttpService, rootUrl : string) {
+            this._$http = $http;
 
-        constructor(service: cef) {
-            this.service = service;            
+            // Remove trailing slash from URL if present
+            this._rootUrl = rootUrl.substr(-1) != '/'
+                ? rootUrl
+                : rootUrl.substr(0, rootUrl.length - 1);
+
+            this.test = new Test(this);
         }
+        
+        private _$http: ng.IHttpService;
+        get $http():ng.IHttpService {
+                return this._$http;
+            }
+        
+
+        private _rootUrl: string;
+        get rootUrl():string {
+                return this._rootUrl;
+            }            
+  
+        
+
     }
 
     export interface ReturnStringWithParamDto {
@@ -37,7 +56,7 @@
         Flag: boolean;
     }
 
-        export class Test extends RouteAggregator {
+    export class Test extends ServiceStackRoute {
         /**
          * C# Type:  ServiceStack.CodeGenerator.TypeScript.Tests.ReturnString
          * Path: /Test/ReturnString
@@ -98,43 +117,30 @@
         
     }
 
-
-
-
-///<reference path="_references.ts"/>
-
-
+       
+    // ----- Routes -----
+    
     /**
-     * Exposes access to the ServiceStack routes
+    * Base class for service stack routes
     */
-    export class cef {
+    export class ServiceStackRoute {
+        public service : ClarityEcomService;
         
-        private _$http: ng.IHttpService;
-        get $http():ng.IHttpService {
-                return this._$http;
-            }
-        
+        // The root URL for making RESTful calls
+        get rootUrl() : string { return this.service.rootUrl; }
+        get $http() : ng.IHttpService { return this.service.$http; }
 
-        private _rootUrl: string;
-
-        get rootUrl():string {
-                return this._rootUrl;
-            }
-            set rootUrl(value:string) {
-                // Remove trailing slash if it exists
-                this._rootUrl = value.substr(-1) != '/'
-                    ? value
-                    : value.substr(0, value.length - 1);
-            }
-  
-        constructor($http: ng.IHttpService) {
-            this._$http = $http;
-
-            this.test = new Test(this);
+        constructor(service: ClarityEcomService) {
+            this.service = service;                
         }
-
-        test: Test;
-
     }
 
+    // ----- DTOS -----
+    export interface SomeDto {
+        ID: number;
+        Value?: string;
+    }
+
+
+}
 

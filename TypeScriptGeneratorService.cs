@@ -22,18 +22,19 @@
 
         public string Any(CodeGenRoute codeGen) {
             // http://localhost/service/CodeGen?TypeNamePattern=GetShipments
-            IEnumerable<Type> routeTypes =
+            var routeTypes =
                 AppDomain.CurrentDomain.GetAssemblies()
                     .Where(a => a.FullName.StartsWith(string.IsNullOrEmpty(codeGen.ClrNamespace) ? "Clarity.Ecommerce.Service" : codeGen.ClrNamespace))
-                    .SelectMany(a => a.GetTypes().Where(t => t.CustomAttributes.Any(attr => attr.AttributeType == typeof(RouteAttribute))));
+                    .SelectMany(a => a.GetTypes().Where(t => t.CustomAttributes.Any(attr => attr.AttributeType == typeof(RouteAttribute))))
+                    .ToList();
 
             if (!string.IsNullOrEmpty(codeGen.TypeNamePattern)) {
                 var r = new Regex(codeGen.TypeNamePattern);
-                routeTypes = routeTypes.Where(rt => r.Match(rt.Name).Success);
+                routeTypes = routeTypes.Where(rt => r.Match(rt.Name).Success).ToList();
             }
 
             var cg = new TypescriptCodeGenerator(routeTypes, "cv.cef.api", new[] { "Clarity.Ecommerce.DataModel" });
-            return cg.GenerateClient() + "\n" + cg.GenerateDtos() + "\n" + cg.GenerateRoutes();
+            return cg.Generate();
         }
 
         #endregion
