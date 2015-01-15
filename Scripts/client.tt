@@ -32,20 +32,15 @@
 
     var cg = new TypescriptCodeGenerator(
             routeTypes, 
-            "cv.cef.api",
-            new string[]{"Clarity.Ecommerce.DataModel"},     // Array of namespaces to ignore when generating DTOs
+            "cef",
+            new string[]{"Clarity.Ecommerce.DataModel"}     // Array of namespaces to ignore when generating DTOs
                                                             // We added this because our DTOs in some cases included an entity type which we did not want to see propagated to our typescript
-            "$cef"
             );        
         
-    manager.StartNewFile("dtos.ts");
     WriteLine(cg.GenerateDtos());
-    manager.EndBlock();
-
-	manager.StartNewFile("routes.ts");
+    
     WriteLine(cg.GenerateRoutes());
-    manager.EndBlock();
-
+    
     #>
 ///<reference path="_references.ts"/>
 

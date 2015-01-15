@@ -32,7 +32,7 @@
                 routeTypes = routeTypes.Where(rt => r.Match(rt.Name).Success);
             }
 
-            var cg = new TypescriptCodeGenerator(routeTypes, "cv.cef.api", new[] { "Clarity.Ecommerce.DataModel" }, "$cef");
+            var cg = new TypescriptCodeGenerator(routeTypes, "cv.cef.api", new[] { "Clarity.Ecommerce.DataModel" });
             return cg.GenerateClient() + "\n" + cg.GenerateDtos() + "\n" + cg.GenerateRoutes();
         }
 

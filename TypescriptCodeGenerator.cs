@@ -27,6 +27,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
     using System.Linq;
     using System.Reflection;
     using System.Runtime.Serialization;
+    using System.Security.Authentication.ExtendedProtection;
 
     public class TypescriptCodeGenerator {
         #region Constants
@@ -41,24 +42,21 @@ namespace ServiceStack.CodeGenerator.TypeScript {
 
         private readonly string[] _ExclusionNamespaces;
 
-        private readonly string _ModuleNamespace;
+        private IndentedTextWriter _ServiceRoutesWriter;
 
-        private readonly string _ServiceName;
-
-        private IndentedTextWriter _ClientRoutesWriter;
-
-        private IndentedTextWriter _ClientWriter;
+        private IndentedTextWriter _ServiceWriter;
 
         private IndentedTextWriter _RoutesWriter;
+
+        private readonly string _ServiceName;
 
         #endregion
 
         #region Constructors and Destructors
 
-        public TypescriptCodeGenerator(IEnumerable<Type> routeTypes, string moduleNamespace, string[] exclusionNamespaces, string serviceName = "") {
-            _ModuleNamespace = moduleNamespace;
-            _ExclusionNamespaces = exclusionNamespaces;
+        public TypescriptCodeGenerator(IEnumerable<Type> routeTypes, string serviceName, string[] exclusionNamespaces) {
             _ServiceName = serviceName;
+            _ExclusionNamespaces = exclusionNamespaces;
             ProcessTypes(routeTypes);
         }
 
@@ -67,32 +65,16 @@ namespace ServiceStack.CodeGenerator.TypeScript {
         #region Public Methods and Operators
 
         public string GenerateClient() {
-            var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
-            writer.WriteLine("///<reference path=\"dtos.ts\"/>");
-            writer.WriteLine("///<reference path=\"routes.ts\"/>");
+            var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
 
-            writer.WriteLine("\nmodule " + _ModuleNamespace + " {");
-            writer.Indent++;
-
-            // Code to expose the service
-            writer.WriteLine(@"angular
-        .module('" + _ModuleNamespace + @"', [])
-        .service('" + _ServiceName + @"', ['$http', ($http : ng.IHttpService) => {
-            return new Client($http);
-        }]);");
-
-            writer.WriteLine(_ClientWriter.InnerWriter);
-
-            writer.Indent--;
-            writer.WriteLine("}");
+            writer.WriteLine(_ServiceWriter.InnerWriter);
 
             return writer.InnerWriter.ToString();
         }
 
         public string GenerateDtos() {
-            var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
-            writer.WriteLine("module " + _ModuleNamespace + ".dtos {");
-            writer.Indent++;
+            var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
+            writer.WriteLine("// ----- DTOS -----");
 
             // Write out the DTOs
             foreach (Type dto in _DTOs.OrderBy(t => t.Name)) {
@@ -100,11 +82,24 @@ namespace ServiceStack.CodeGenerator.TypeScript {
 
                 GenerateJsDoc(writer, dto, dtoProperties, true);
 
-                writer.WriteLine("export interface " + dto.Name + " {");
+                bool isInheritedClass = dto.BaseType != null && dto.BaseType != typeof(object) && _DTOs.Contains(dto.BaseType);
+
+                if (isInheritedClass) {
+                    writer.WriteLine("export interface " + dto.Name + " extends " + dto.BaseType.Name + " {");
+                }
+                else {
+                    writer.WriteLine("export interface " + dto.Name + " {");
+                }
                 writer.Indent++;
 
                 foreach (PropertyInfo property in dtoProperties) {
                     try {
+                        // Don't redeclare inherited properties
+                        if (isInheritedClass && dto.BaseType.GetProperty(property.Name) != null) {
+                            continue;
+                        }
+
+                        // Property on this class
                         Type returnType = property.GetMethod.ReturnType;
                         // Optional?
                         if (returnType.IsNullableType() || returnType.IsClass()) writer.WriteLine(property.Name + "?: " + DetermineTsType(returnType) + ";");
@@ -121,39 +116,30 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 writer.WriteLine("}\n");
             }
 
-            writer.Indent--;
-            writer.WriteLine("}");
-
             return writer.InnerWriter.ToString();
         }
 
         public string GenerateRoutes() {
-            var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
-            writer.WriteLine("///<reference path=\"client.ts\"/>");
-            writer.WriteLine("///<reference path=\"dtos.ts\"/>");
+            var writer = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
 
-            writer.WriteLine("\nmodule " + _ModuleNamespace + ".routes {");
-            writer.Indent++;
-
-            writer.WriteLine(@"
+            writer.WriteLine(@"   
+    // ----- Routes -----
+    
     /**
-     * Base class for classes implementing communication with a service stack route.
+    * Base class for classes implementing communication with a service stack route.
     */
     export class RouteAggregator {
-        public client : Client;
-        get rootUrl() : string { return this.client.rootUrl; }
-        get $http() : ng.IHttpService { return this.client.$http; }
+        public service : " + _ServiceName + @";
+        get rootUrl() : string { return this.service.rootUrl; }
+        get $http() : ng.IHttpService { return this.service.$http; }
 
-        constructor(client: Client) {
-            this.client = client;            
+        constructor(service: " + _ServiceName + @") {
+            this.service = service;            
         }
     }
 ");
 
             writer.WriteLine(_RoutesWriter.InnerWriter);
-
-            writer.Indent--;
-            writer.WriteLine("}");
 
             return writer.InnerWriter.ToString();
         }
@@ -199,24 +185,21 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 else if (genericDefinition.Name.StartsWith("List`") || genericDefinition.Name.StartsWith("IList`") || genericDefinition.Name.StartsWith("ICollection`")
                          || genericDefinition.Name.StartsWith("IEnumerable`")) {
                     result = "Array<" + DetermineTsType(type.GenericTypeArguments[0]) + ">";
-                } 
+                }
                 else throw new Exception("Error processing " + type.Name + " - Unknown generic type " + type.GetGenericTypeDefinition().Name);
             }
             else {
                 if (type.Namespace != null && !_DTOs.Contains(type) && !_ExclusionNamespaces.Any(ns => type.Namespace.StartsWith(ns))) {
                     _DTOs.Add(type);
 
-                    if (type.Name == "CartModel") {
-                        int i = 0;
-                    }
                     // Since the DTO might expose other DTOs we need to examine all of the return types of properties
                     foreach (PropertyInfo property in type.Properties().Where(p => p.CanRead && !p.HasAttribute<IgnoreDataMemberAttribute>())) {
-                        DetermineTsType(property.GetMethod.ReturnType);                        
+                        DetermineTsType(property.GetMethod.ReturnType);
                     }
                 }
 
                 // We put our models in a dtos module in typescript
-                result = _DTOs.Contains(type) ? "dtos." + type.Name : "any";
+                result = _DTOs.Contains(type) ? type.Name : "any";
             }
 
             return result;
@@ -285,17 +268,17 @@ namespace ServiceStack.CodeGenerator.TypeScript {
         }
 
         private void ProcessTypes(IEnumerable<Type> routeTypes) {
-            _ClientWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
-            _ClientWriter.WriteLine(@"
+            _ServiceWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
+            _ServiceWriter.WriteLine(@"
     /**
      * Exposes access to the ServiceStack routes
     */
-    export class Client {");
-            _ClientWriter.Indent++;
+    export class " + _ServiceName + " {");
+            _ServiceWriter.Indent++;
 
-            _ClientRoutesWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 2 };
-            var clientConstructorWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
-            clientConstructorWriter.WriteLine(@"
+            _ServiceRoutesWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 0 };
+            var constructor = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
+            constructor.WriteLine(@"
         private _$http: ng.IHttpService;
         get $http():ng.IHttpService {
                 return this._$http;
@@ -317,19 +300,19 @@ namespace ServiceStack.CodeGenerator.TypeScript {
         constructor($http: ng.IHttpService) {
             this._$http = $http;
 ");
-            clientConstructorWriter.Indent += 2;
+            constructor.Indent += 2;
 
-            _RoutesWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
+            _RoutesWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 2 };
 
             foreach (var routeRoot in GetRegisteredServiceStackRoutes(routeTypes).OrderBy(rr => rr.Key)) {
                 var classWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
                 var routeDtosWriter = new IndentedTextWriter(new StringWriter(), TAB) { Indent = 1 };
 
-                _ClientRoutesWriter.WriteLine(routeRoot.Key.ToCamelCase() + ": routes." + routeRoot.Key + ";");
+                _ServiceRoutesWriter.WriteLine(routeRoot.Key.ToCamelCase() + ": " + routeRoot.Key + ";");
 
                 classWriter.WriteLine("export class " + routeRoot.Key + " extends RouteAggregator {");
 
-                clientConstructorWriter.WriteLine("this." + routeRoot.Key.ToCamelCase() + " = new routes." + routeRoot.Key + "(this);");
+                constructor.WriteLine("this." + routeRoot.Key.ToCamelCase() + " = new " + routeRoot.Key + "(this);");
 
                 classWriter.Indent++;
 
@@ -338,7 +321,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                         string returnTsType = DetermineTsType(type);
 
                         if (routeRoot.Value[type].Count > 1) {
-                            _ClientWriter.WriteLine(
+                            _ServiceWriter.WriteLine(
                                 "// " + type + "/ exports multiple routes.  Typescript does not support operator overloading and this operation is not supported.  Make seperate routes instead.");
                         }
 
@@ -376,15 +359,15 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 _RoutesWriter.WriteLine(classWriter.InnerWriter);
             }
 
-            clientConstructorWriter.Indent--;
-            clientConstructorWriter.WriteLine("}");
-            _ClientWriter.WriteLine(clientConstructorWriter.InnerWriter);
+            constructor.Indent--;
+            constructor.WriteLine("}");
+            _ServiceWriter.WriteLine(constructor.InnerWriter);
 
-            _ClientWriter.WriteLine(_ClientRoutesWriter.InnerWriter);
+            _ServiceWriter.WriteLine(_ServiceRoutesWriter.InnerWriter);
 
             // End of Client Repository Singleton 
-            _ClientWriter.Indent--;
-            _ClientWriter.WriteLine("}");
+            _ServiceWriter.Indent--;
+            _ServiceWriter.WriteLine("}");
         }
 
         private void WriteRouteMethodBody(IndentedTextWriter classWriter, RouteCodeGeneration cg, string verb) {
