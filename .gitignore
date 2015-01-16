@@ -11,6 +11,8 @@ Clarity.Ecommerce.Service/app_data/aspnetdb_log.ldf
 
 Web/bin/*
 
+.nuget
+
 # User-specific files
 *.suo
 *.user
@@ -113,7 +115,7 @@ publish/
 
 # NuGet Packages Directory
 ## TODO: If you have NuGet Package Restore enabled, uncomment the next line
-#packages/
+packages/
 
 # Windows Azure Build Output
 csx
