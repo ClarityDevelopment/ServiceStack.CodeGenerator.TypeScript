@@ -1,7 +1,7 @@
 ﻿ 
  
  
-/// <script path="../scripts/typings/angularjs/angular.d.ts" />
+/// <script path="../../typescript-definitionsangularjs/angular.d.ts" />
 
 module cv.cef {
 
