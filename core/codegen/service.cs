@@ -45,11 +45,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
             constructor.WriteLine(@"
         constructor($http: ng.IHttpService, rootUrl : string) {
             this._$http = $http;
-
-            // Remove trailing slash from URL if present
-            this._rootUrl = rootUrl.substr(-1) != '/'
-                ? rootUrl
-                : rootUrl.substr(0, rootUrl.length - 1);
+           
 ");
             constructor.Indent += 2;
             
@@ -73,8 +69,13 @@ namespace ServiceStack.CodeGenerator.TypeScript {
             }        
 
         private _rootUrl: string;
+
+        set rootUrl(value) { this._rootUrl = value; }
         get rootUrl():string {
-                return this._rootUrl;
+                 // Remove trailing slash from URL if present
+            return this._rootUrl.substr(-1) != '/'
+                ? this._rootUrl
+                : this._rootUrl.substr(0, this._rootUrl.length - 1);
             }              
         ");
             
