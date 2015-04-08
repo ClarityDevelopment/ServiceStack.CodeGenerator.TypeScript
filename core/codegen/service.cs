@@ -45,7 +45,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
             constructor.WriteLine(@"
         constructor($http: ng.IHttpService, rootUrl : string) {
             this._$http = $http;
-           
+           this.rootUrl = rootUrl;
 ");
             constructor.Indent += 2;
             
