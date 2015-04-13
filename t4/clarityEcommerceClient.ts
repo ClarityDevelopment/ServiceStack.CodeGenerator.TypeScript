@@ -1,7 +1,7 @@
 ﻿ 
  
  
-/// <script path="../../typescript-definitionsangularjs/angular.d.ts" />
+/// <reference path="../../typescript-definitions/angularjs/angular.d.ts" />
 
 module cv.cef {
 
@@ -9,39 +9,59 @@ module cv.cef {
      * Exposes access to the ServiceStack routes
     */
     export interface IClarityEcomService {
+        $http: ng.IHttpService;
+        rootUrl:string;
+        // Routes
         test: Test;
     }
     
     /**
      * Exposes access to the ServiceStack routes
     */
-    class ClarityEcomService implements IClarityEcomService{
+    export class ClarityEcomService implements IClarityEcomService{
         test : Test
         
         constructor($http: ng.IHttpService, rootUrl : string) {
             this._$http = $http;
-
-            // Remove trailing slash from URL if present
-            this._rootUrl = rootUrl.substr(-1) != '/'
-                ? rootUrl
-                : rootUrl.substr(0, rootUrl.length - 1);
+           this.rootUrl = rootUrl;
 
             this.test = new Test(this);
         }
+
         
         private _$http: ng.IHttpService;
         get $http():ng.IHttpService {
                 return this._$http;
-            }
-        
+            }        
 
         private _rootUrl: string;
-        get rootUrl():string {
-                return this._rootUrl;
-            }            
-  
-        
 
+        set rootUrl(value) { this._rootUrl = value; }
+        get rootUrl():string {
+                 // Remove trailing slash from URL if present
+            return this._rootUrl.substr(-1) != '/'
+                ? this._rootUrl
+                : this._rootUrl.substr(0, this._rootUrl.length - 1);
+            }              
+        
+    }
+
+       
+    // ----- Routes -----
+    
+    /**
+    * Base class for service stack routes
+    */
+    export class ServiceStackRoute {
+        public service : ClarityEcomService;
+        
+        // The root URL for making RESTful calls
+        get rootUrl() : string { return this.service.rootUrl; }
+        get $http() : ng.IHttpService { return this.service.$http; }
+
+        constructor(service: ClarityEcomService) {
+            this.service = service;                
+        }
     }
 
     export interface ReturnStringWithParamDto {
@@ -115,24 +135,6 @@ module cv.cef {
             });
         }
         
-    }
-
-       
-    // ----- Routes -----
-    
-    /**
-    * Base class for service stack routes
-    */
-    export class ServiceStackRoute {
-        public service : ClarityEcomService;
-        
-        // The root URL for making RESTful calls
-        get rootUrl() : string { return this.service.rootUrl; }
-        get $http() : ng.IHttpService { return this.service.$http; }
-
-        constructor(service: ClarityEcomService) {
-            this.service = service;                
-        }
     }
 
     // ----- DTOS -----

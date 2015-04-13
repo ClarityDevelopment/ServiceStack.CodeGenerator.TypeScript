@@ -24,28 +24,43 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                 if (isInheritedClass) {
                     writer.WriteLine("export interface " + dto.Name + " extends " + dto.BaseType.Name + " {");
                 }
+                else if (dto.IsEnum) {
+                    writer.WriteLine("export enum " + dto.Name + " {");
+                }
                 else {
                     writer.WriteLine("export interface " + dto.Name + " {");
                 }
                 writer.Indent++;
 
-                foreach (PropertyInfo property in dtoProperties) {
-                    try {
-                        // Don't redeclare inherited properties
-                        if (isInheritedClass && dto.BaseType.GetProperty(property.Name) != null) {
-                            continue;
+                if (dto.IsEnum) {
+                    foreach (var value in dto.GetEnumValues()) {
+                        if (value is Int32) {
+                            writer.WriteLine(dto.GetEnumName(value) + " = " + value + ","); 
                         }
-
-                        // Property on this class
-                        Type returnType = property.GetMethod.ReturnType;
-                        // Optional?
-                        if (returnType.IsNullableType() || returnType.IsClass()) writer.WriteLine(property.Name + "?: " + DetermineTsType(returnType) + ";");
-                        else // Required 
-                            writer.WriteLine(property.Name + ": " + DetermineTsType(returnType) + ";");
+                        else {
+                            writer.WriteLine(value + ",");
+                        }
                     }
-                    catch (Exception e) {
-                        writer.WriteLine("// ERROR - Unable to emit property " + property.Name);
-                        writer.WriteLine("//     " + e.Message);
+                }
+                else {
+                    foreach (PropertyInfo property in dtoProperties) {
+                        try {
+                            // Don't redeclare inherited properties
+                            if (isInheritedClass && dto.BaseType.GetProperty(property.Name) != null) {
+                                continue;
+                            }
+
+                            // Property on this class
+                            Type returnType = property.GetMethod.ReturnType;
+                            // Optional?
+                            if (returnType.IsNullableType() || returnType.IsClass()) writer.WriteLine(property.Name + "?: " + DetermineTsType(returnType) + ";");
+                            else // Required 
+                                writer.WriteLine(property.Name + ": " + DetermineTsType(returnType) + ";");
+                        }
+                        catch (Exception e) {
+                            writer.WriteLine("// ERROR - Unable to emit property " + property.Name);
+                            writer.WriteLine("//     " + e.Message);
+                        }
                     }
                 }
 

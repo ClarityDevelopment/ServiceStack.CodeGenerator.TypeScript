@@ -13,7 +13,7 @@
 <#@ import namespace="ServiceStack.CodeGenerator.TypeScript" #>
 <#@output extension=".ts"#>
 <# var manager = Manager.Create(Host, GenerationEnvironment); #>
-/// <script path="../../typescript-definitionsangularjs/angular.d.ts" />
+/// <reference path="../../typescript-definitions/angularjs/angular.d.ts" />
 
 module cv.cef {
 <#
