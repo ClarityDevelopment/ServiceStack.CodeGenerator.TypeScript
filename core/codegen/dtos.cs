@@ -53,9 +53,9 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                             // Property on this class
                             Type returnType = property.GetMethod.ReturnType;
                             // Optional?
-                            if (returnType.IsNullableType() || returnType.IsClass()) writer.WriteLine(property.Name + "?: " + DetermineTsType(returnType) + ";");
+                            if (returnType.IsNullableType() || returnType.IsClass()) writer.WriteLine(property.Name + "?: " + DetermineTsType(returnType, true) + ";");
                             else // Required 
-                                writer.WriteLine(property.Name + ": " + DetermineTsType(returnType) + ";");
+                                writer.WriteLine(property.Name + ": " + DetermineTsType(returnType, true) + ";");
                         }
                         catch (Exception e) {
                             writer.WriteLine("// ERROR - Unable to emit property " + property.Name);

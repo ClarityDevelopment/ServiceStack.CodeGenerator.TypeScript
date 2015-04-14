@@ -100,7 +100,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
 
         #region Methods
 
-    internal string DetermineTsType(Type type) {
+    internal string DetermineTsType(Type type, bool isForDto = false) {
         if (type == typeof(bool)) return "boolean";
         if (type == typeof(string) || type == typeof(char)) return "string";
         if (type == typeof(int) || type == typeof(byte) || type == typeof(short) || type == typeof(uint) || type == typeof(ulong) || type == typeof(ushort) || type == typeof(Int64)
@@ -108,7 +108,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
         if (type == typeof(DateTime) || type == typeof(DateTimeOffset)) return "Date";
 
         string result;
-        if (type.HasAttribute<RouteAttribute>()) {
+        if (!isForDto && type.HasAttribute<RouteAttribute>()) {
             Type[] interfaces = type.GetTypeInterfaces();
             if (interfaces.Any(ti => ti == typeof(IReturnVoid))) result = "void";
             else {
@@ -118,25 +118,26 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                     Type ireturn = type.Interfaces().FirstOrDefault(ti => ti.IsGenericType && ti.Name.StartsWith("IReturn`"));
 
                     if (ireturn == null) result = "void";
-                    else result = DetermineTsType(ireturn.GenericTypeArguments[0]);
+                    else result = DetermineTsType(ireturn.GenericTypeArguments[0], isForDto);
                 }
                 else result = "void";
             }
         }
-        else if (type.IsArray()) result = "Array<" + DetermineTsType(type.GetElementType()) + ">";
+        else if (type.IsArray()) result = "Array<" + DetermineTsType(type.GetElementType(), isForDto) + ">";
         else if (type.IsNullableType()) {
             // int?, bool?, etc.  Use the more underlying type
-            result = DetermineTsType(type.GenericTypeArguments[0]);
+            result = DetermineTsType(type.GenericTypeArguments[0], isForDto);
         }
         else if (type.IsGenericType) {
             Type genericDefinition = type.GetGenericTypeDefinition();
 
             if (genericDefinition.Name.StartsWith("Dictionary") || genericDefinition.Name.StartsWith("IDictionary")) {
-                result = "{[name: " + DetermineTsType(type.GenericTypeArguments[0]) + "]: " + DetermineTsType(type.GenericTypeArguments()[1]) + "}";
+                result = "{[name: " + DetermineTsType(type.GenericTypeArguments[0], isForDto) + "]: " 
+                        + DetermineTsType(type.GenericTypeArguments()[1], isForDto) + "}";
             }
             else if (genericDefinition.Name.StartsWith("List`") || genericDefinition.Name.StartsWith("IList`") || genericDefinition.Name.StartsWith("ICollection`")
                      || genericDefinition.Name.StartsWith("IEnumerable`")) {
-                result = "Array<" + DetermineTsType(type.GenericTypeArguments[0]) + ">";
+                result = "Array<" + DetermineTsType(type.GenericTypeArguments[0], isForDto) + ">";
             }
             else throw new Exception("Error processing " + type.Name + " - Unknown generic type " + type.GetGenericTypeDefinition().Name);
         }
@@ -146,7 +147,7 @@ namespace ServiceStack.CodeGenerator.TypeScript {
 
                 // Since the DTO might expose other DTOs we need to examine all of the return types of properties
                 foreach (PropertyInfo property in type.Properties().Where(p => p.CanRead && !p.HasAttribute<IgnoreDataMemberAttribute>())) {
-                    DetermineTsType(property.GetMethod.ReturnType);
+                    DetermineTsType(property.GetMethod.ReturnType, isForDto);
                 }
             }
 

@@ -70,6 +70,7 @@
     <Compile Include="core\codegen\routes.cs" />
     <Compile Include="core\codegen\service.cs" />
     <Compile Include="core\attributes.cs" />
+    <Compile Include="Tests\DictionaryTest.cs" />
     <Compile Include="Tests\SimpleRouteTest.cs" />
     <Compile Include="core\TypescriptCodeGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -95,16 +96,16 @@
     <TypeScriptCompile Include="Scripts\typings\angularjs\angular.d.ts" />
     <TypeScriptCompile Include="Scripts\typings\jquery\jquery.d.ts" />
     <TypeScriptCompile Include="Scripts\_references.ts" />
-    <TypeScriptCompile Include="t4\clarityEcommerceClient.ts">
+    <TypeScriptCompile Include="t4\TypescriptCodeGenTest.ts">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
-      <DependentUpon>clarityEcommerceClient.tt</DependentUpon>
+      <DependentUpon>TypescriptCodeGenTest.tt</DependentUpon>
     </TypeScriptCompile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="t4\clarityEcommerceClient.tt">
+    <Content Include="t4\TypescriptCodeGenTest.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>clarityEcommerceClient.ts</LastGenOutput>
+      <LastGenOutput>TypescriptCodeGenTest.ts</LastGenOutput>
     </Content>
   </ItemGroup>
   <ItemGroup />

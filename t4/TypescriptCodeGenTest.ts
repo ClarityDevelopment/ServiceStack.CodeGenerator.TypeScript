@@ -64,6 +64,10 @@ module cv.cef {
         }
     }
 
+    export interface GetMetadataDto {
+        categories?: {[name: number]: SearchProductCatalog};
+        price?: {[name: number]: SearchProductCatalog};
+    }
     export interface ReturnStringWithParamDto {
         Flag: boolean;
     }
@@ -77,6 +81,18 @@ module cv.cef {
     }
 
     export class Test extends ServiceStackRoute {
+        /**
+         * C# Type:  ServiceStack.CodeGenerator.TypeScript.Tests.GetMetadata
+         * Path: /Test/GetMetadata
+        */
+        GetMetadata = (routeParams ?: GetMetadataDto) => {
+            return this.$http<void>({
+                url:  [this.rootUrl, "Test", "GetMetadata"].join('/'),
+                method: 'GET',
+                params:  routeParams
+            });
+        }
+        
         /**
          * C# Type:  ServiceStack.CodeGenerator.TypeScript.Tests.ReturnString
          * Path: /Test/ReturnString
@@ -138,6 +154,11 @@ module cv.cef {
     }
 
     // ----- DTOS -----
+    export interface SearchProductCatalog {
+        TestBool: boolean;
+        TestString?: string;
+    }
+
     export interface SomeDto {
         ID: number;
         Value?: string;

@@ -237,16 +237,16 @@ namespace ServiceStack.CodeGenerator.TypeScript {
                                   + _CodeGenerator.DetermineTsType(returnType));
             */
                 if (docAttr != null) RouteInputPropertyLines.Add(EmitComment(docAttr));
-                RouteInputPropertyLines.Add(property.Name + "?: " + _CodeGenerator.DetermineTsType(returnType) + ";");
+                RouteInputPropertyLines.Add(property.Name + "?: " + _CodeGenerator.DetermineTsType(returnType, true) + ";");
             }
             else // Required parameter
             {
                 if (!IsRouteParam) {
                     if (docAttr != null) RouteInputPropertyLines.Add(EmitComment(docAttr));
                     RouteInputHasOnlyOptionalParams = false;
-                    RouteInputPropertyLines.Add(property.Name + ": " + _CodeGenerator.DetermineTsType(returnType) + ";");
+                    RouteInputPropertyLines.Add(property.Name + ": " + _CodeGenerator.DetermineTsType(returnType, true) + ";");
                 }
-                else MethodParameters.Add(property.Name.ToCamelCase() + ": " + _CodeGenerator.DetermineTsType(returnType));
+                else MethodParameters.Add(property.Name.ToCamelCase() + ": " + _CodeGenerator.DetermineTsType(returnType, true));
             }
 
             ParamsWritten++;
